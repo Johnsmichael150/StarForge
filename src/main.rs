@@ -80,6 +80,9 @@ enum Commands {
     /// Manage third-party plugins
     #[command(subcommand)]
     Plugin(commands::plugin::PluginCommands),
+    /// Manage community contract templates
+    #[command(subcommand)]
+    Template(commands::template::TemplateCommands),
 
     /// Execute an installed plugin command (e.g. `starforge defi ...`)
     #[command(external_subcommand)]
@@ -119,6 +122,7 @@ fn main() {
         Commands::Test(_) => "test",
         Commands::Gas(_) => "gas",
         Commands::Plugin(_) => "plugin",
+        Commands::Template(_) => "template",
         Commands::External(_) => "external",
     }.to_string();
 
@@ -140,6 +144,7 @@ fn main() {
         Commands::Test(args) => commands::test::handle(args),
         Commands::Gas(args) => commands::gas::handle(args),
         Commands::Plugin(args) => commands::plugin::handle(args),
+        Commands::Template(args) => commands::template::handle(args),
         Commands::External(args) => handle_external_plugin(args),
     };
     let duration = start.elapsed();
