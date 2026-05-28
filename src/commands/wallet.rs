@@ -165,6 +165,9 @@ pub enum MultisigCommands {
         /// Override network for this config
         #[arg(long)]
         network: Option<String>,
+        /// Optional file path to write a setup transaction JSON/XDR payload
+        #[arg(long)]
+        xdr_output: Option<PathBuf>,
     },
     /// Sign a multi-sig transaction JSON with all available local signer keys
     ///
@@ -812,7 +815,8 @@ fn handle_multisig(cmd: MultisigCommands) -> Result<()> {
             threshold,
             signers,
             network,
-        } => multisig_create(name, threshold, signers, network),
+            xdr_output,
+        } => multisig_create(name, threshold, signers, network, xdr_output),
         MultisigCommands::Sign {
             name,
             transaction,
@@ -833,6 +837,7 @@ fn multisig_create(
     threshold: u8,
     signers: String,
     network: Option<String>,
+    xdr_output: Option<PathBuf>,
 ) -> Result<()> {
     config::validate_wallet_name(&name)?;
     multisig::validate_threshold(threshold)?;
@@ -893,6 +898,7 @@ fn multisig_create(
     };
 
     multisig::save_account(&account)?;
+    let setup_steps = multisig::build_stellar_cli_steps(&account, &network);
 
     println!();
     p::header(&format!("Multi-sig: {}", name));
@@ -901,7 +907,27 @@ fn multisig_create(
     p::kv("Network", &network);
     p::kv("Threshold", &threshold.to_string());
     p::kv("Signers", &account.signers.len().to_string());
-    p::info("Sign with: starforge wallet multisig sign <name> --transaction tx.json");
+    if let Some(path) = xdr_output {
+        let setup_tx = multisig::build_account_setup_transaction(&account, &network)?;
+        multisig::save_transaction(&path, &setup_tx)?;
+        p::kv("Setup XDR JSON", &path.display().to_string());
+    }
+    println!();
+    p::info("Next steps to configure the account on-chain:");
+    for (index, step) in setup_steps.iter().enumerate() {
+        println!("  {}. {}", index + 1, step.title);
+        println!("     {}", step.command.cyan());
+    }
+    println!();
+    p::info("After your account is updated on-chain, collect signatures with:");
+    println!(
+        "  {}",
+        format!(
+            "starforge wallet multisig sign {} --transaction tx.json",
+            account.name
+        )
+        .cyan()
+    );
     Ok(())
 }
 
